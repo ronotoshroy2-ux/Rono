@@ -1,6 +1,6 @@
 name: Android Build APK
-on:
-push:
+on
+push
 branches: [ main ]
 jobs:
 build:
