@@ -34,10 +34,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: pnpm
 
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build web bundle
         env:
@@ -53,10 +52,6 @@ jobs:
         working-directory: mobile/android
         run: chmod +x ./gradlew
 
-      # ──────────────────────────────────────────────────────────────
-      # 1) Debug APK — always built, side-loadable, signed with the
-      #    auto-generated debug keystore. No secrets required.
-      # ──────────────────────────────────────────────────────────────
       - name: Assemble debug APK
         working-directory: mobile/android
         run: ./gradlew assembleDebug
@@ -68,16 +63,6 @@ jobs:
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      # ──────────────────────────────────────────────────────────────
-      # 2) Release AAB — only if the four signing secrets are set on
-      #    the repo (Settings → Secrets and variables → Actions). If
-      #    any are missing, this step is skipped with a clear message.
-      #    Required secrets:
-      #      ANDROID_KEYSTORE_BASE64   — base64 of your .jks/.keystore file
-      #      ANDROID_KEYSTORE_PASSWORD — store password
-      #      ANDROID_KEY_ALIAS         — key alias inside the keystore
-      #      ANDROID_KEY_PASSWORD      — key password (often same as store)
-      # ──────────────────────────────────────────────────────────────
       - name: Check release signing secrets
         id: signing
         run: |
@@ -86,16 +71,14 @@ jobs:
             && [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] \
             && [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "Release signing secrets present — will build signed AAB."
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Release signing secrets missing — skipping signed AAB. Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD to repo secrets to enable."
+            echo "::warning::Release signing secrets missing — skipping signed AAB."
           fi
 
       - name: Decode keystore
         if: steps.signing.outputs.available == 'true'
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.keystore"
 
       - name: Bundle signed release AAB
         if: steps.signing.outputs.available == 'true'
